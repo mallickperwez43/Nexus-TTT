@@ -6,12 +6,9 @@
 ![Testing](https://img.shields.io/badge/Testing-Jest-green)
 ![Tests Passing](https://img.shields.io/badge/Tests-23_passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-70%25_functions-yellow)
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) 
-
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 Nexus-TTT is a high-performance, full-stack Tic-Tac-Toe platform designed for scalability and deep strategy. Moving beyond the classic 3x3 grid, Nexus-TTT allows players to compete on dynamic grids (up to 10x10) against a heuristic-driven Expert AI or real-time human opponents.
-
-
 
 ## 🚀 Core Features
 

@@ -6,7 +6,7 @@ const baseThemes = {
         id: "classic-light",
         label: "Classic Light",
         winLine: "#16a34a",
-        confetti: ["#60A5FA", "#F87171", "#34D399", "#FBBF24", "#A855F7"], // added yellow & purple
+        confetti: ["#60A5FA", "#F87171", "#34D399", "#FBBF24", "#A855F7"],
         background: "from-gray-100 to-gray-300",
         xColor: "#2563eb",
         oColor: "#dc2626",
@@ -22,7 +22,7 @@ const baseThemes = {
         id: "classic-dark",
         label: "Classic Dark",
         winLine: "#86efac",
-        confetti: ["#60a5fa", "#a78bfa", "#fca5a5", "#fde68a", "#f472b6"], // added soft yellow & pink
+        confetti: ["#60a5fa", "#a78bfa", "#fca5a5", "#fde68a", "#f472b6"],
         background: "from-gray-900 to-gray-800",
         xColor: "#60a5fa",
         oColor: "#f87171",
@@ -38,7 +38,7 @@ const baseThemes = {
         id: "pastel",
         label: "Pastel Soft",
         winLine: "#f472b6",
-        confetti: ["#fbcfe8", "#c7b3ff", "#bbf7d0", "#fde68a", "#a5f3fc"], // added soft yellow & cyan
+        confetti: ["#fbcfe8", "#c7b3ff", "#bbf7d0", "#fde68a", "#a5f3fc"],
         background: "from-pink-50 to-blue-50",
         xColor: "#60a5fa",
         oColor: "#fbbf24",
@@ -54,7 +54,7 @@ const baseThemes = {
         id: "neon",
         label: "Neon Glow",
         winLine: "#67e8f9",
-        confetti: ["#34d399", "#f472b6", "#60a5fa", "#facc15", "#f5f3ff", "#ff4d6d"], // added bright white & pink-red
+        confetti: ["#34d399", "#f472b6", "#60a5fa", "#facc15", "#ff4d6d"],
         background: "from-black to-slate-900",
         xColor: "#0ea5e9",
         oColor: "#f472b6",
@@ -70,7 +70,7 @@ const baseThemes = {
         id: "retro",
         label: "Retro Pixel",
         winLine: "#fbbf24",
-        confetti: ["#fde68a", "#fb923c", "#f472b6", "#34d399", "#60a5fa"], // added green & blue for retro vibe
+        confetti: ["#fde68a", "#fb923c", "#f472b6", "#34d399", "#60a5fa"],
         background: "from-yellow-50 to-orange-50",
         xColor: "#f97316",
         oColor: "#8b5cf6",
@@ -86,7 +86,7 @@ const baseThemes = {
         id: "deep-space",
         label: "Deep Space",
         winLine: "#fde047",
-        confetti: ["#fbbf24", "#f472b6", "#60a5fa", "#a78bfa", "#f5f3ff"], // added purple & white for cosmic effect
+        confetti: ["#fbbf24", "#f472b6", "#60a5fa", "#a78bfa", "#f5f3ff"],
         background: "from-gray-950 to-gray-900",
         xColor: "#fbbf24",
         oColor: "#60a5fa",
