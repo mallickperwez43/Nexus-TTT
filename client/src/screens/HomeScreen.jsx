@@ -44,7 +44,7 @@ const HomeScreen = () => {
                     </h1>
                     <p className="text-lg md:text-xl font-bold tracking-[0.5em] uppercase opacity-50"
                         style={{ color: theme.textColor }}>
-                        Tic-Tac-Toe
+                        Neural Tic-Tac-Toe
                     </p>
                 </div>
 
