@@ -4,6 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+body {
+  /* Use the variable set by themeUtils */
+  background-color: var(--bg-color);
+  transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
+}
+
 /* ANIMATION: strike-through drawing effect */
 .animate-draw-line {
   stroke-dashoffset: var(--line-length);
