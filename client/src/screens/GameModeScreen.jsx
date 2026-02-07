@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store/useGameStore";
 import { useThemeStore } from "../store/useThemeStore";
 import { getThemeById } from "../utils/themeUtils";
+import { FlickeringGrid } from "@/components/ui/flickering-grid";
 
 const GameModeScreen = () => {
     const navigate = useNavigate();
@@ -16,6 +17,10 @@ const GameModeScreen = () => {
     const theme = getThemeById(currentTheme, themeConfig);
 
     const gameActive = gameStarted && board.some(cell => cell !== null) && !winner;
+
+    const flickerColors = theme.confetti && theme.confetti.length > 0
+        ? theme.confetti
+        : (theme.xColor || "#94a3b8");
 
     useEffect(() => {
         setLocalP1("");
@@ -148,102 +153,97 @@ const GameModeScreen = () => {
     };
 
     return (
-        <div
-            className="min-h-screen flex flex-col justify-start items-center px-4 py-12"
-            style={{ color: theme.textColor }}
-        >
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-6" style={{ color: theme.headingColor }}>
-                Select Game Mode
-            </h2>
+        <div className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden">
 
-            <div className="w-full max-w-md">
-                {/* Mode Selection Buttons */}
-                {!mode && (
-                    <div className="flex flex-col gap-4">
-                        <button
-                            onClick={() => setMode("pvp")}
-                            className="w-full px-6 py-3 rounded-xl font-semibold text-lg transition transform hover:scale-105 shadow-md"
-                            style={{ background: theme.xColor, color: theme.buttonText }}
-                        >
-                            Player vs Player
-                        </button>
+            {/* 1. THE FLICKERING GRID BACKGROUND */}
+            <div className="absolute inset-0 z-0">
+                <FlickeringGrid
+                    squareSize={4}
+                    gridGap={6}
+                    flickerChance={0.3}
+                    color={flickerColors}
+                    maxOpacity={0.5}
+                    className="w-full h-full"
+                />
+                {/* 2. RADIAL OVERLAY (Ensures readability in the center) */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        background: `radial-gradient(circle at center, transparent 20%, ${theme.backgroundColor || theme.boardColor} 100%)`
+                    }}
+                />
+            </div>
 
-                        <button
-                            onClick={() => setMode("ai")}
-                            className="w-full px-6 py-3 rounded-xl font-semibold text-lg transition transform hover:scale-105 shadow-md"
-                            style={{ background: theme.oColor, color: theme.buttonText }}
-                        >
-                            Player vs Computer 🤖
-                        </button>
-                    </div>
-                )}
+            {/* 3. THE UI CONTENT */}
+            <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center">
+                <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-8 text-center"
+                    style={{ color: theme.headingColor }}>
+                    {mode ? "Configure" : "Select Mode"}
+                </h2>
 
-                {/* PVP MODE */}
-                {mode === "pvp" && (
-                    <div className="flex flex-col items-center w-full space-y-4">
-                        {renderPlayerInput("Name of Player 1", localP1, setLocalP1)}
-                        {renderPlayerInput("Name of Player 2", localP2, setLocalP2)}
+                <div className="w-full backdrop-blur-2xl rounded-[3rem] p-8 border shadow-2xl space-y-6"
+                    style={{
+                        backgroundColor: `${theme.boardColor}aa`,
+                        borderColor: `${theme.borderColor}44`
+                    }}>
 
-                        {renderBoardSizeSelector()}
+                    {!mode && (
+                        <div className="flex flex-col gap-4">
+                            <button
+                                onClick={() => setMode("pvp")}
+                                className="w-full px-6 py-5 rounded-2xl font-bold text-xl transition transform hover:scale-[1.02] active:scale-95 shadow-xl"
+                                style={{ background: theme.xColor, color: "#fff" }}
+                            >
+                                Local PVP
+                            </button>
+                            <button
+                                onClick={() => setMode("ai")}
+                                className="w-full px-6 py-5 rounded-2xl font-bold text-xl transition transform hover:scale-[1.02] active:scale-95 shadow-xl"
+                                style={{ background: theme.oColor, color: "#fff" }}
+                            >
+                                Neural AI 🤖
+                            </button>
+                        </div>
+                    )}
 
-                        {renderActionButtons()}
-                    </div>
-                )}
+                    {mode === "pvp" && (
+                        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+                            {renderPlayerInput("Player 1", localP1, setLocalP1)}
+                            {renderPlayerInput("Player 2", localP2, setLocalP2)}
+                            {renderBoardSizeSelector()}
+                            {renderActionButtons()}
+                        </div>
+                    )}
 
-                {/* AI MODE */}
-                {mode === "ai" && (
-                    <div className="flex flex-col items-center w-full space-y-4">
-                        {renderPlayerInput("Your Name (Player)", localP1, setLocalP1)}
-
-                        <div className="w-full">
-                            <label className="text-sm font-semibold mb-1 block" style={{ color: theme.subTextColor }}>
-                                Opponent
-                            </label>
-
-                            <div className="w-full p-3 rounded-lg border font-bold" style={{ background: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}>
-                                Computer 🤖
+                    {mode === "ai" && (
+                        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+                            {renderPlayerInput("Your Name", localP1, setLocalP1)}
+                            <div className="w-full">
+                                <label className="text-sm font-semibold mb-1 block opacity-70">Difficulty</label>
+                                <select
+                                    value={aiDifficulty}
+                                    onChange={(e) => setAiDifficulty(e.target.value)}
+                                    className="w-full p-3 rounded-lg border font-bold appearance-none outline-none"
+                                    style={{ background: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}
+                                >
+                                    <option>Easy</option>
+                                    <option>Normal</option>
+                                    <option>Hard</option>
+                                    <option>Expert</option>
+                                </select>
                             </div>
+                            {renderBoardSizeSelector()}
+                            {renderActionButtons()}
                         </div>
+                    )}
+                </div>
 
-                        <div className="w-full">
-                            <label
-                                htmlFor="ai-difficulty-select"
-                                className="text-sm font-semibold mb-1 block"
-                                style={{ color: theme.subTextColor }}
-                            >
-                                AI Difficulty Level
-                            </label>
-
-                            <select
-                                id="ai-difficulty-select"
-                                aria-label="AI Difficulty Level"
-                                value={aiDifficulty}
-                                onChange={(e) => setAiDifficulty(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg shadow-sm font-medium"
-                                style={{ background: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}
-                            >
-                                <option>Easy</option>
-                                <option>Normal</option>
-                                <option>Hard</option>
-                                <option>Expert</option>
-                            </select>
-                        </div>
-
-                        {renderBoardSizeSelector()}
-
-                        {renderActionButtons()}
-                    </div>
-                )}
-
-
-
-                {/* Back Button */}
                 <button
                     onClick={() => navigate("/")}
-                    className="mt-6 px-6 py-3 rounded-lg shadow-md transition hover:scale-105 font-semibold w-full"
-                    style={{ background: theme.boardColor, color: theme.textColor, border: `1px solid ${theme.borderColor}` }}
+                    className="mt-8 px-6 py-2 rounded-full border text-[10px] font-bold uppercase tracking-[0.3em] transition hover:bg-white/10"
+                    style={{ borderColor: `${theme.textColor}22`, color: theme.textColor }}
                 >
-                    ← Back
+                    ← Return to Base
                 </button>
             </div>
         </div>
