@@ -4,6 +4,7 @@ import { useGameStore } from "../store/useGameStore";
 import { useThemeStore } from "../store/useThemeStore";
 import { getThemeById } from "../utils/themeUtils";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const GameModeScreen = () => {
     const navigate = useNavigate();
@@ -154,8 +155,7 @@ const GameModeScreen = () => {
 
     return (
         <div className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden">
-
-            {/* 1. THE FLICKERING GRID BACKGROUND */}
+            {/* 1. BACKGROUND */}
             <div className="absolute inset-0 z-0">
                 <FlickeringGrid
                     squareSize={4}
@@ -165,7 +165,6 @@ const GameModeScreen = () => {
                     maxOpacity={0.5}
                     className="w-full h-full"
                 />
-                {/* 2. RADIAL OVERLAY (Ensures readability in the center) */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -174,7 +173,7 @@ const GameModeScreen = () => {
                 />
             </div>
 
-            {/* 3. THE UI CONTENT */}
+            {/* 2. UI CONTENT */}
             <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center">
                 <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase mb-8 text-center"
                     style={{ color: theme.headingColor }}>
@@ -218,20 +217,38 @@ const GameModeScreen = () => {
                     {mode === "ai" && (
                         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
                             {renderPlayerInput("Your Name", localP1, setLocalP1)}
+
+                            {/* --- SHADCN SELECT INTEGRATION --- */}
                             <div className="w-full">
-                                <label className="text-sm font-semibold mb-1 block opacity-70">Difficulty</label>
-                                <select
-                                    value={aiDifficulty}
-                                    onChange={(e) => setAiDifficulty(e.target.value)}
-                                    className="w-full p-3 rounded-lg border font-bold appearance-none outline-none"
-                                    style={{ background: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}
-                                >
-                                    <option>Easy</option>
-                                    <option>Normal</option>
-                                    <option>Hard</option>
-                                    <option>Expert</option>
-                                </select>
+                                <label className="text-sm font-semibold mb-1 block opacity-70" style={{ color: theme.subTextColor }}>
+                                    Difficulty Level
+                                </label>
+                                <Select value={aiDifficulty} onValueChange={setAiDifficulty}>
+                                    <SelectTrigger
+                                        className="w-full h-12 text-lg font-bold rounded-lg border-2"
+                                        style={{
+                                            background: theme.boardColor,
+                                            borderColor: theme.borderColor,
+                                            color: theme.textColor
+                                        }}
+                                    >
+                                        <SelectValue placeholder="Select Difficulty" />
+                                    </SelectTrigger>
+                                    <SelectContent
+                                        style={{
+                                            background: theme.boardColor,
+                                            borderColor: theme.borderColor,
+                                            color: theme.textColor
+                                        }}
+                                    >
+                                        <SelectItem value="Easy" className="font-bold cursor-pointer">Easy</SelectItem>
+                                        <SelectItem value="Normal" className="font-bold cursor-pointer">Normal</SelectItem>
+                                        <SelectItem value="Hard" className="font-bold cursor-pointer">Hard</SelectItem>
+                                        <SelectItem value="Expert" className="font-bold cursor-pointer text-red-500">Expert</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
+
                             {renderBoardSizeSelector()}
                             {renderActionButtons()}
                         </div>
