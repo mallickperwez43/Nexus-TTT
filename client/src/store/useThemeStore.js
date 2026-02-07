@@ -17,6 +17,7 @@ const baseThemes = {
         headingColor: "#1f2937",
         buttonText: "#ffffff",
         buttonBg: "#17f237",
+        backgroundColor: "#f3f4f6",
     },
     "classic-dark": {
         id: "classic-dark",
@@ -33,6 +34,7 @@ const baseThemes = {
         headingColor: "#ffffff",
         buttonText: "#ffffff",
         buttonBg: "#374151",
+        backgroundColor: "#f3f4f6",
     },
     pastel: {
         id: "pastel",
@@ -49,6 +51,7 @@ const baseThemes = {
         headingColor: "#1e40af",
         buttonText: "#ffffff",
         buttonBg: "#3b82f6",
+        backgroundColor: "#fdf2f8"
     },
     neon: {
         id: "neon",
@@ -65,6 +68,7 @@ const baseThemes = {
         headingColor: "#38bdf8",
         buttonText: "#ffffff",
         buttonBg: "#0ea5e9",
+        backgroundColor: "#000000"
     },
     retro: {
         id: "retro",
@@ -81,6 +85,7 @@ const baseThemes = {
         headingColor: "#ea580c",
         buttonText: "#ffffff",
         buttonBg: "#f97316",
+        backgroundColor: "#fef3c7"
     },
     "deep-space": {
         id: "deep-space",
@@ -97,6 +102,7 @@ const baseThemes = {
         headingColor: "#fbbf24",
         buttonText: "#ffffff",
         buttonBg: "#6366f1",
+        backgroundColor: "#030712"
     },
 };
 
