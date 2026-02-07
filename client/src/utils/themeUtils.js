@@ -26,7 +26,7 @@ export const applyThemeToHtml = (theme) => {
     root.style.setProperty("--o-color", theme.oColor);
     root.style.setProperty("--board-color", theme.boardColor);
     root.style.setProperty("--border-color", theme.borderColor);
-    root.style.setProperty("--bg-color", isDark ? "#020617" : "#f8fafc");
+    root.style.setProperty("--bg-color", theme.backgroundColor || theme.boardColor);
     root.style.setProperty("--grid-line-color", isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
 
     // Also set the background class if needed
