@@ -34,7 +34,7 @@ const baseThemes = {
         headingColor: "#ffffff",
         buttonText: "#ffffff",
         buttonBg: "#374151",
-        backgroundColor: "#f3f4f6",
+        backgroundColor: "#111827",
     },
     pastel: {
         id: "pastel",
