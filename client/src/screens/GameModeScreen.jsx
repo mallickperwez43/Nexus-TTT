@@ -158,7 +158,7 @@ const GameModeScreen = () => {
             {/* 1. BACKGROUND */}
             <div className="absolute inset-0 z-0">
                 <FlickeringGrid
-                    squareSize={4}
+                    squareSize={8}
                     gridGap={6}
                     flickerChance={0.3}
                     color={flickerColors}
