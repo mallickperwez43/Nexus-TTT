@@ -7,6 +7,8 @@ import confetti from "canvas-confetti";
 import { getThemeById } from "../utils/themeUtils";
 import { useKeyboardShortCuts } from "../hooks/useKeyboardShortcuts";
 import HelpModal from "../components/HelpModal";
+import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
+import { socket } from "@/lib/socket";
 
 const GameScreen = () => {
     const {
@@ -27,6 +29,7 @@ const GameScreen = () => {
         boardSize: n,
         gameStarted,
         setBoardSize,
+        handleRemoteMove,
     } = useGameStore();
 
     const { themeConfig, currentTheme } = useThemeStore();
@@ -39,6 +42,10 @@ const GameScreen = () => {
     const [measuredBoardSize, setMeasuredBoardSize] = useState(0);
     // used to force recreation of gradient/filter elements so they update reliably
     const [winKey, setWinKey] = useState(0);
+
+    const [opponentJoined, setOpponentJoined] = useState(false);
+
+    const roomCode = useGameStore(state => state.roomCode);
 
     const navigate = useNavigate();
 
@@ -124,10 +131,36 @@ const GameScreen = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [winner, theme]);
 
+    useEffect(() => {
+        if (gameMode !== "online") {
+            setOpponentJoined(true); // Always "joined" for AI/Local
+            return;
+        }
+
+        // Check status immediately on mount
+        socket.emit("join_room", { room: roomCode });
+
+        socket.on("room_status", (data) => {
+            if (data.count >= 2) {
+                setOpponentJoined(true);
+            } else {
+                setOpponentJoined(false);
+            }
+        });
+
+        return () => socket.off("room_status");
+    }, [gameMode, roomCode]);
+
 
     if (!gameMode) {
         return <Navigate to="/" replace />
     }
+
+    // Setup neon colors based on theme confetti
+    const neonColors = {
+        firstColor: theme.confetti?.[0] || "#ffffff",
+        secondColor: theme.confetti?.[1] || theme.confetti?.[0] || "#ffffff",
+    };
 
     const shakeBoard = () => {
         if (!boardRef.current) return;
@@ -295,6 +328,14 @@ const GameScreen = () => {
         );
     };
 
+    const handleExit = () => {
+        if (gameMode === "online" && roomCode) {
+            socket.emit("leave_room", { room: roomCode });
+            socket.disconnect(); // Cleanly close the connection
+        }
+        resetGame();
+        navigate("/mode");
+    };
 
     return (
         <div
@@ -338,20 +379,50 @@ const GameScreen = () => {
             <main className="flex-1 flex items-center justify-center w-full px-4">
                 <div
                     ref={boardRef}
-                    className="w-[min(92vw,520px)] aspect-square relative">
-                    <div
-                        className="game-board grid gap-1.5 p-1.5 w-full h-full rounded-2xl shadow-2xl"
-                        style={{
-                            gridTemplateColumns: `repeat(${n}, 1fr)`,
-                            gridTemplateRows: `repeat(${n}, 1fr)`,
-                            backgroundColor: theme.boardColor,
-                            border: `4px solid ${theme.borderColor}`,
-                        }}
+                    className="w-[min(92vw,520px)] aspect-square relative"
+                >
+                    <NeonGradientCard
+                        borderSize={3}
+                        borderRadius={24}
+                        neonColors={neonColors}
                     >
-                        {board.map((_, i) => (
-                            <Cell key={i} index={i} cellSize={measuredBoardSize / n} />
-                        ))}
-                    </div>
+
+                        {/* MULTIPLAYER OVERLAY */}
+                        {!opponentJoined && gameMode === "online" && (
+                            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-lg rounded-2xl p-6 text-center">
+                                <div className="relative mb-6">
+                                    <div className="w-16 h-16 rounded-full border-4 border-t-transparent animate-spin"
+                                        style={{ borderColor: `${theme.xColor}44`, borderTopColor: theme.xColor }}></div>
+                                    <div className="absolute inset-0 flex items-center justify-center font-black text-xs uppercase"
+                                        style={{ color: theme.xColor }}>TTT</div>
+                                </div>
+
+                                <h3 className="text-2xl font-black italic uppercase tracking-tighter mb-2" style={{ color: theme.headingColor }}>
+                                    Syncing Node...
+                                </h3>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-4">
+                                    Room: <span style={{ color: theme.xColor }}>{roomCode}</span>
+                                </p>
+                                <p className="text-xs font-medium max-w-[200px] leading-relaxed opacity-70">
+                                    Waiting for an opponent to establish connection.
+                                </p>
+                            </div>
+                        )}
+
+                        <div
+                            className="game-board grid gap-1.5 p-1.5 w-full h-full rounded-2xl shadow-2xl"
+                            style={{
+                                gridTemplateColumns: `repeat(${n}, 1fr)`,
+                                gridTemplateRows: `repeat(${n}, 1fr)`,
+                                backgroundColor: theme.boardColor,
+                                border: `4px solid ${theme.borderColor}`,
+                            }}
+                        >
+                            {board.map((_, i) => (
+                                <Cell key={i} index={i} cellSize={measuredBoardSize / n} />
+                            ))}
+                        </div>
+                    </NeonGradientCard>
 
                     {/* win line overlay */}
                     {renderWinLine()}
@@ -374,7 +445,7 @@ const GameScreen = () => {
 
                 <div className="flex justify-between items-center px-2">
                     <button onClick={() => setShowHelp(true)} className="text-[10px] font-black uppercase opacity-50 tracking-widest">⌨️ Help</button>
-                    <button onClick={() => navigate("/mode")} className="text-[10px] font-black uppercase opacity-50 tracking-widest">← Exit Game</button>
+                    <button onClick={handleExit} className="text-[10px] font-black uppercase opacity-50 tracking-widest">← Exit Game</button>
                 </div>
             </footer>
 
