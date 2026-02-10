@@ -29,7 +29,8 @@ const GameScreen = () => {
         boardSize: n,
         gameStarted,
         setBoardSize,
-        handleRemoteMove,
+        roomCode,
+        syncGameState
     } = useGameStore();
 
     const { themeConfig, currentTheme } = useThemeStore();
@@ -45,11 +46,42 @@ const GameScreen = () => {
 
     const [opponentJoined, setOpponentJoined] = useState(false);
 
-    const roomCode = useGameStore(state => state.roomCode);
-
     const navigate = useNavigate();
 
     const gameActive = gameStarted && board.some(cell => cell !== null) && !winner;
+
+    useEffect(() => {
+        if (gameMode !== "online") {
+            setOpponentJoined(true);
+            return;
+        }
+
+        // 1. Join the room
+        socket.emit("join_room", { room: roomCode });
+
+        // 2. Listen for player count changes
+        socket.on("room_status", (data) => {
+            setOpponentJoined(data.count >= 2);
+        });
+
+        // 3. Listen for the Authoritative Server State
+        // This handles moves, undos, redos, and resets globally
+        socket.on("sync_state", (data) => {
+            syncGameState(data);
+        });
+
+        return () => {
+            socket.off("room_status");
+            socket.off("sync_state");
+        };
+    }, [gameMode, roomCode]);
+
+    useEffect(() => {
+        if (board.every(cell => cell === null)) {
+            stopConfetti();
+            setWinKey(k => k + 1);
+        }
+    }, [board]);
 
     const { showHelp, setShowHelp } = useKeyboardShortCuts({
         undoMove,
@@ -65,16 +97,9 @@ const GameScreen = () => {
                 resetGame();
             }
         },
-        canUndo: canUndo(),
-        canRedo: canRedo(),
-        isThinking: thinking,
         navigate,
     });
 
-    // hydrate store on mount
-    useEffect(() => {
-        _hydrate();
-    }, []);
 
     // measure board using ResizeObserver for reliable updates (SVG LINE)
     useEffect(() => {
@@ -131,30 +156,7 @@ const GameScreen = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [winner, theme]);
 
-    useEffect(() => {
-        if (gameMode !== "online") {
-            setOpponentJoined(true); // Always "joined" for AI/Local
-            return;
-        }
 
-        // Check status immediately on mount
-        socket.emit("join_room", { room: roomCode });
-
-        socket.on("room_status", (data) => {
-            if (data.count >= 2) {
-                setOpponentJoined(true);
-            } else {
-                setOpponentJoined(false);
-            }
-        });
-
-        return () => socket.off("room_status");
-    }, [gameMode, roomCode]);
-
-
-    if (!gameMode) {
-        return <Navigate to="/" replace />
-    }
 
     // Setup neon colors based on theme confetti
     const neonColors = {
@@ -236,13 +238,6 @@ const GameScreen = () => {
 
     const mapPlayerToName = (symbol) =>
         symbol === "X" ? player1 || "Player 1" : player2 || (gameMode === "ai" ? "AI 🤖" : "Player 2");
-
-    const getStatus = () => {
-        if (thinking && gameMode === "ai") return "🤖 Computer is thinking...";
-        if (winner === "Draw") return "It's a Draw!!";
-        if (winner) return `Winner: ${mapPlayerToName(winner)} 🎉`;
-        return `Next Player: ${mapPlayerToName(currentPlayer)} (${currentPlayer})`;
-    };
 
     // coordinates using real board size
     const coordForIndex = (i) => {
@@ -336,6 +331,10 @@ const GameScreen = () => {
         resetGame();
         navigate("/mode");
     };
+
+    if (!gameMode) {
+        return <Navigate to="/" replace />
+    }
 
     return (
         <div
@@ -432,10 +431,10 @@ const GameScreen = () => {
             {/* Controls Footer */}
             <footer className="w-full max-w-md px-6 py-8 flex flex-col gap-4">
                 <div className="grid grid-cols-3 gap-2">
-                    <button onClick={undoMove} disabled={!canUndo() || thinking}
+                    <button onClick={undoMove}
                         className="py-3 rounded-xl font-black uppercase text-xs transition-all active:scale-90 disabled:opacity-20 shadow-md"
                         style={{ backgroundColor: theme.buttonBg, color: theme.buttonText }}>Undo</button>
-                    <button onClick={redoMove} disabled={!canRedo() || thinking}
+                    <button onClick={redoMove}
                         className="py-3 rounded-xl font-black uppercase text-xs transition-all active:scale-90 disabled:opacity-20 shadow-md"
                         style={{ backgroundColor: theme.buttonBg, color: theme.buttonText }}>Redo</button>
                     <button onClick={() => { stopConfetti(); resetGame(); }}
@@ -447,31 +446,33 @@ const GameScreen = () => {
                     <button onClick={() => setShowHelp(true)} className="text-[10px] font-black uppercase opacity-50 tracking-widest">⌨️ Help</button>
                     <button onClick={handleExit} className="text-[10px] font-black uppercase opacity-50 tracking-widest">← Exit Game</button>
                 </div>
-            </footer>
+            </footer >
 
             {/* Winner Modal */}
-            {winner && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md z-100 p-6"
-                    onClick={(e) => e.target === e.currentTarget && resetGame()}>
-                    <div className="w-full max-w-sm p-8 rounded-[2rem] shadow-2xl text-center border-4 animate-in zoom-in duration-300"
-                        style={{ backgroundColor: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}>
-                        <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-2" style={{ color: theme.headingColor }}>
-                            {winner === "Draw" ? "Draw" : "Winner!"}
-                        </h2>
-                        <p className="text-xl font-bold mb-8 opacity-70">
-                            {winner === "Draw" ? "Nice try!" : `${mapPlayerToName(winner)} takes it.`}
-                        </p>
-                        <div className="flex flex-col gap-3">
-                            <button onClick={() => { stopConfetti(); resetGame(); }}
-                                className="w-full py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-transform"
-                                style={{ backgroundColor: theme.winLine, color: theme.buttonText }}>
-                                Play Again
-                            </button>
-                            <button onClick={() => navigate("/mode")} className="w-full py-2 text-xs font-black uppercase opacity-40">Main Menu</button>
+            {
+                winner && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md z-100 p-6"
+                        onClick={(e) => e.target === e.currentTarget && resetGame()}>
+                        <div className="w-full max-w-sm p-8 rounded-[2rem] shadow-2xl text-center border-4 animate-in zoom-in duration-300"
+                            style={{ backgroundColor: theme.boardColor, borderColor: theme.borderColor, color: theme.textColor }}>
+                            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-2" style={{ color: theme.headingColor }}>
+                                {winner === "Draw" ? "Draw" : "Winner!"}
+                            </h2>
+                            <p className="text-xl font-bold mb-8 opacity-70">
+                                {winner === "Draw" ? "Nice try!" : `${mapPlayerToName(winner)} takes it.`}
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button onClick={() => { stopConfetti(); resetGame(); }}
+                                    className="w-full py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-transform"
+                                    style={{ backgroundColor: theme.winLine, color: theme.buttonText }}>
+                                    Play Again
+                                </button>
+                                <button onClick={() => navigate("/mode")} className="w-full py-2 text-xs font-black uppercase opacity-40">Main Menu</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div >
     );
 };
