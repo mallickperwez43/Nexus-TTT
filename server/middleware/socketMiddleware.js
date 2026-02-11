@@ -7,6 +7,7 @@ const socketAuth = async (socket, next) => {
         const rawCookies = socket.handshake.headers.cookie;
 
         if (!rawCookies) {
+            console.log("❌ No cookies in handshake");
             return next(new Error("Authentication error: No cookies found"));
         }
 
@@ -14,24 +15,26 @@ const socketAuth = async (socket, next) => {
         const token = parsedCookies.token;
 
         if (!token) {
+            console.log("❌ Token not found in cookies");
             return next(new Error("Authentication error: Token missing"));
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Optional: Check if user still exists in DB
         const user = await UserModel.findById(decoded.id).select("username");
         if (!user) {
             return next(new Error("Authentication error: User no longer exists"));
         }
 
         socket.userId = decoded.id;
-        socket.username = user.username; // Useful for chat messages
+        socket.username = user.username;
+        socket.data.username = user.username;
 
+        console.log("✅ Socket authenticated:", user.username);
         next();
 
     } catch (error) {
-        console.error("Socket Middleware Error:", error.message);
+        console.error("❌ Socket auth error:", error.message);
         return next(new Error("Authentication error"));
     }
 };

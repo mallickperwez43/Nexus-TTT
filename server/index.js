@@ -14,14 +14,16 @@ connectDB();
 
 const app = express();
 
+app.use(cookieParser());
+app.use(express.json());
+
 app.use(cors({
     origin: process.env.CLIENT_URI || "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(cookieParser());
-app.use(express.json());
 
 
 app.use("/api/v1/user", userRouter);
@@ -33,7 +35,6 @@ const io = new Server(server, {
         methods: ["GET", "POST"],
         credentials: true
     },
-    transports: ['websocket', 'polling']
 });
 console.log("RAW ENV URI:", process.env.CLIENT_URI);
 console.log("CORS Origin being used:", process.env.CLIENT_URI);

@@ -6,6 +6,8 @@ const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authMiddleware");
 const { signupSchema, loginSchema, validate } = require("../middleware/validate");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 // SIGNUP
 userRouter.post("/signup", validate(signupSchema), async (req, res) => {
     try {
@@ -40,18 +42,19 @@ userRouter.post("/login", validate(loginSchema), async (req, res) => {
         // Long lived 7 days
         const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
 
+        // FIXED: Different settings for dev vs production
         res.cookie("token", accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "Lax",
+            secure: isProduction,           // true in prod, false in dev
+            sameSite: isProduction ? "none" : "lax",  // none for prod (cross-origin), lax for dev
             maxAge: 15 * 60 * 1000, // 15 mins
         });
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "Lax",
-            path: "/api/v1/user/refresh", // Only sent to the refresh endpoint
+            secure: isProduction,           // true in prod, false in dev
+            sameSite: isProduction ? "none" : "lax",  // none for prod, lax for dev
+            path: "/api/v1/user/refresh",
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
@@ -60,6 +63,7 @@ userRouter.post("/login", validate(loginSchema), async (req, res) => {
             user: { username: user.username, rank: user.rank, wins: user.wins }
         });
     } catch (err) {
+        console.error("Login error:", err);
         res.status(500).json({ error: "Server error during login" });
     }
 });
@@ -77,8 +81,8 @@ userRouter.get("/refresh", async (req, res) => {
 
         res.cookie("token", newAccessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "Lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
             maxAge: 15 * 60 * 1000,
         });
 
@@ -91,7 +95,6 @@ userRouter.get("/refresh", async (req, res) => {
 // ME
 userRouter.get("/me", authMiddleware, async (req, res) => {
     try {
-
         const user = await UserModel.findById(req.userId).select("-password");
         if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -109,8 +112,17 @@ userRouter.get("/me", authMiddleware, async (req, res) => {
 
 // LOGOUT
 userRouter.post("/logout", (req, res) => {
-    res.clearCookie("token");
-    res.clearCookie("refreshToken", { path: "/api/v1/user/refresh" });
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax"
+    });
+    res.clearCookie("refreshToken", {
+        path: "/api/v1/user/refresh",
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax"
+    });
     res.status(200).json({ message: "Logged out successfully" });
 });
 
