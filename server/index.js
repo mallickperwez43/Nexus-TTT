@@ -35,8 +35,8 @@ const io = new Server(server, {
     },
     transports: ['websocket', 'polling']
 });
-
-console.log("CORS Origin being used:", process.env.CLIENT_URI || "http://localhost:5173");
+console.log("RAW ENV URI:", process.env.CLIENT_URI);
+console.log("CORS Origin being used:", process.env.CLIENT_URI);
 io.use(socketAuth);
 
 // Socket.io Connection
