@@ -9,6 +9,8 @@ import { useKeyboardShortCuts } from "../hooks/useKeyboardShortcuts";
 import HelpModal from "../components/HelpModal";
 import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
 import { socket } from "@/lib/socket";
+import { useAuthStore } from "@/store/useAuthStore";
+import ChatBox from "@/components/ChatBox";
 
 const GameScreen = () => {
     const {
@@ -36,6 +38,8 @@ const GameScreen = () => {
     const { themeConfig, currentTheme } = useThemeStore();
     const theme = getThemeById(currentTheme, themeConfig);
 
+    const { user } = useAuthStore();
+
     const boardRef = useRef(null);
     const confettiFrameRef = useRef(null);
 
@@ -57,14 +61,57 @@ const GameScreen = () => {
         }
 
         // 1. Join the room
-        socket.emit("join_room", { room: roomCode });
+        socket.emit("join_room", {
+            room: roomCode,
+            username: user?.username || "Guest",
+            gridSize: n,
+        });
 
         // 2. Listen for player count changes
         socket.on("room_status", (data) => {
-            setOpponentJoined(data.count >= 2);
+            // 1. Update joined state
+            const hasOpponent = data.count >= 2 || (data.players && data.players.length >= 2);;
+            setOpponentJoined(hasOpponent);
+
+            // 2. Update players in store
+            if (data.players) {
+                useGameStore.getState().updateOnlinePlayers(data.players);
+            }
+
+            // 3. Logic: If opponent leaves MID-GAME (not in lobby)
+            // We only care if the game actually started (moves on board)
+            const isMidGame = useGameStore.getState().board.some(cell => cell !== null);
+
+            if (data.count < 2 && isMidGame && !winner) {
+                console.log("Opponent disconnected during active play.");
+                // The 'opponent_left_win' event from server will handle the modal
+            }
+
+            if (data.gridSize && data.gridSize !== n) {
+                useGameStore.getState().setBoardSize(data.gridSize);
+            }
         });
 
         // 3. Listen for the Authoritative Server State
+
+        // Forfeit win
+        socket.on("opponent_left_win", (data) => {
+            // We use the store to set the winner manually
+            const state = useGameStore.getState();
+
+            // Determine if the remaining player is X or O to set the winner correctly
+            // If the store doesn't have a specific setWinner, we can trigger it via sync
+            state.syncGameState({
+                board: state.board,
+                winner: state.playerRole, // The person still here is the winner
+                winningCells: [], // No line needed for forfeit
+                currentPlayer: state.currentPlayer
+            });
+
+            // Optional: Show a toast or specific message
+            console.log(data.message);
+        });
+
         // This handles moves, undos, redos, and resets globally
         socket.on("sync_state", (data) => {
             syncGameState(data);
@@ -73,8 +120,9 @@ const GameScreen = () => {
         return () => {
             socket.off("room_status");
             socket.off("sync_state");
+            socket.off("opponent_left_win");
         };
-    }, [gameMode, roomCode]);
+    }, [gameMode, roomCode, user]);
 
     useEffect(() => {
         if (board.every(cell => cell === null)) {
@@ -139,23 +187,32 @@ const GameScreen = () => {
         };
     }, []);
 
-    // refresh the winKey when theme changes so SVG defs refresh (fixes missing stroke on theme switch)
-    useEffect(() => {
-        setWinKey((k) => k + 1);
-    }, [currentTheme]);
-
     // run confetti + force winKey increment on new winner
     useEffect(() => {
         if (winner) {
             setWinKey((k) => k + 1);
             runConfettiForResult(winner);
+
+            // Record win for online multiplayer
+            if (gameMode === "online" && winner !== "Draw") {
+                const playerRole = useGameStore.getState().playerRole;
+
+                console.log("🎮 Game ended. Winner:", winner, "| Your role:", playerRole, "| Username:", user?.username);
+
+                // Only the winner records their win
+                if (winner === playerRole) {
+                    console.log("🏆 You won! Recording win for:", user?.username);
+                    socket.emit("record_win", { username: user?.username });
+                } else {
+                    console.log("😢 You lost. Winner was:", winner);
+                }
+            }
         }
         return () => {
             stopConfetti();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [winner, theme]);
-
+    }, [winner, theme, gameMode, user]);
 
 
     // Setup neon colors based on theme confetti
@@ -354,16 +411,27 @@ const GameScreen = () => {
                 {/* VS Info */}
                 <div className="flex items-center justify-between w-full bg-black/5 p-2 rounded-2xl border-2"
                     style={{ borderColor: theme.borderColor }}>
-                    <div className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-300 ${currentPlayer === 'X' ? 'bg-white/10 shadow-lg scale-105' : 'opacity-40'}`}>
-                        <span className="text-[10px] font-black uppercase opacity-60">Player 1</span>
+
+                    {/* Player 1 (X) */}
+                    <div className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-300 
+                        ${currentPlayer === 'X' ? 'bg-white/10 shadow-lg scale-105' : 'opacity-40'}`}>
+                        <span className="text-[10px] font-black uppercase opacity-60">
+                            {gameMode === "online" && useGameStore.getState().playerRole === "X" ? "YOU (X)" : "Player 1"}
+                        </span>
                         <span className="text-xl font-black" style={{ color: theme.xColor }}>{player1 || "X"}</span>
                     </div>
 
                     <div className="px-4 font-black italic opacity-20 text-2xl">VS</div>
 
-                    <div className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-300 ${currentPlayer === 'O' ? 'bg-white/10 shadow-lg scale-105' : 'opacity-40'}`}>
-                        <span className="text-[10px] font-black uppercase opacity-60">{gameMode === 'ai' ? 'AI' : 'Player 2'}</span>
-                        <span className="text-xl font-black" style={{ color: theme.oColor }}>{gameMode === 'ai' ? "🤖" : (player2 || "O")}</span>
+                    {/* Player 2 (O) */}
+                    <div className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-300 
+                        ${currentPlayer === 'O' ? 'bg-white/10 shadow-lg scale-105' : 'opacity-40'}`}>
+                        <span className="text-[10px] font-black uppercase opacity-60">
+                            {gameMode === 'ai' ? 'AI' : (gameMode === "online" && useGameStore.getState().playerRole === "O" ? "YOU (O)" : "Player 2")}
+                        </span>
+                        <span className="text-xl font-black" style={{ color: theme.oColor }}>
+                            {gameMode === 'ai' ? "🤖" : (player2 || "O")}
+                        </span>
                     </div>
                 </div>
             </header>
@@ -371,7 +439,21 @@ const GameScreen = () => {
             {/* Status Area */}
             <div className="h-12 flex items-center justify-center mt-2">
                 <p className="font-bold uppercase tracking-widest text-xs sm:text-sm italic opacity-80">
-                    {thinking ? "🤖 AI is calculating..." : (winner ? "Round Over" : `Turn: ${currentPlayer}`)}
+                    {thinking ? (
+                        "🤖 AI is calculating..."
+                    ) : winner ? (
+                        "Round Over"
+                    ) : gameMode === "online" ? (
+                        // Logic for Online Turn Display
+                        currentPlayer === useGameStore.getState().playerRole ? (
+                            <span style={{ color: theme.winLine }}>Your Turn</span>
+                        ) : (
+                            `Waiting for ${currentPlayer === "X" ? (player1 || "Opponent") : (player2 || "Opponent")}...`
+                        )
+                    ) : (
+                        // Logic for Local/AI Turn Display
+                        `Turn: ${mapPlayerToName(currentPlayer)}`
+                    )}
                 </p>
             </div>
 
@@ -387,7 +469,7 @@ const GameScreen = () => {
                     >
 
                         {/* MULTIPLAYER OVERLAY */}
-                        {!opponentJoined && gameMode === "online" && (
+                        {!opponentJoined && gameMode === "online" && !winner && (
                             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-lg rounded-2xl p-6 text-center">
                                 <div className="relative mb-6">
                                     <div className="w-16 h-16 rounded-full border-4 border-t-transparent animate-spin"
@@ -446,6 +528,12 @@ const GameScreen = () => {
                     <button onClick={() => setShowHelp(true)} className="text-[10px] font-black uppercase opacity-50 tracking-widest">⌨️ Help</button>
                     <button onClick={handleExit} className="text-[10px] font-black uppercase opacity-50 tracking-widest">← Exit Game</button>
                 </div>
+
+                {gameMode === "online" && (
+                    <div className="w-full max-w-md mt-6">
+                        <ChatBox room={roomCode} isGlobal={false} theme={theme} username={user?.username} />
+                    </div>
+                )}
             </footer >
 
             {/* Winner Modal */}
@@ -459,7 +547,9 @@ const GameScreen = () => {
                                 {winner === "Draw" ? "Draw" : "Winner!"}
                             </h2>
                             <p className="text-xl font-bold mb-8 opacity-70">
-                                {winner === "Draw" ? "Nice try!" : `${mapPlayerToName(winner)} takes it.`}
+                                {winner !== "Draw" && board.filter(Boolean).length < (n * n) && !winningCells?.length
+                                    ? "Opponent Forfeited!"
+                                    : (winner === "Draw" ? "Nice try!" : `${mapPlayerToName(winner)} takes it.`)}
                             </p>
                             <div className="flex flex-col gap-3">
                                 <button onClick={() => { stopConfetti(); resetGame(); }}
