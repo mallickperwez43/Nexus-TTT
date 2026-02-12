@@ -36,8 +36,8 @@ const io = new Server(server, {
         credentials: true
     },
 });
-console.log("RAW ENV URI:", process.env.CLIENT_URI);
-console.log("CORS Origin being used:", process.env.CLIENT_URI);
+// console.log("RAW ENV URI:", process.env.CLIENT_URI);
+// console.log("CORS Origin being used:", process.env.CLIENT_URI);
 io.use(socketAuth);
 
 // Socket.io Connection
