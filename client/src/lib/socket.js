@@ -8,7 +8,7 @@ console.log("🔌 Socket connecting to:", SOCKET_URL);
 export const socket = io(SOCKET_URL, {
     withCredentials: true,  // Send cookies
     autoConnect: false,     // Don't connect until user logs in
-    transports: ['polling', 'websocket'], // Try polling first, then upgrade to websocket
+    transports: ['websocket'],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 5
