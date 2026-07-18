@@ -4,18 +4,21 @@ const UserModel = require("../models/User");
 
 const socketAuth = async (socket, next) => {
     try {
+        let token = null;
+
         const rawCookies = socket.handshake.headers.cookie;
 
-        if (!rawCookies) {
-            console.log("❌ No cookies in handshake");
-            return next(new Error("Authentication error: No cookies found"));
+        if (rawCookies) {
+            const parsedCookies = cookie.parse(rawCookies);
+            token = parsedCookies.token;
         }
 
-        const parsedCookies = cookie.parse(rawCookies);
-        const token = parsedCookies.token;
+        if (!token) {
+            token = socket.handshake.auth?.token || socket.handshake.query?.token;
+        }
 
         if (!token) {
-            console.log("❌ Token not found in cookies");
+            console.log("❌ No token found in cookies, handshake auth, or query parameters");
             return next(new Error("Authentication error: Token missing"));
         }
 

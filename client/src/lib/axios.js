@@ -10,6 +10,19 @@ const api = axios.create({
     }
 });
 
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -26,13 +39,26 @@ api.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-            // Use the base URL variable here too!
-            await axios.get(`${baseURL}/user/refresh`, {
+            const rfToken = localStorage.getItem("refreshToken");
+            const headers = {};
+            if (rfToken) {
+                headers["x-refresh-token"] = rfToken;
+                headers["Authorization"] = `Bearer${rfToken}`;
+            }
+
+            const res = await axios.get(`${baseURL}/user/refresh`, {
                 withCredentials: true,
+                headers: headers
             });
+
+            if (res.data?.token) {
+                localStorage.setItem("token", res.data.token);
+            }
 
             return api(originalRequest);
         } catch (refreshError) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
             return Promise.reject(refreshError);
         }
     }

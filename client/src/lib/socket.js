@@ -11,7 +11,12 @@ export const socket = io(SOCKET_URL, {
     transports: ['websocket'],
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 5
+    reconnectionAttempts: 5,
+    auth: (cb) => {
+        cb({
+            token: localStorage.getItem("token")
+        });
+    }
 });
 
 // Debug logging

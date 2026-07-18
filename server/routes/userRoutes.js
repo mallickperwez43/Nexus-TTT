@@ -42,25 +42,26 @@ userRouter.post("/login", validate(loginSchema), async (req, res) => {
         // Long lived 7 days
         const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
 
-        // FIXED: Different settings for dev vs production
         res.cookie("token", accessToken, {
             httpOnly: true,
             secure: isProduction,           // true in prod, false in dev
-            sameSite: isProduction ? "none" : "lax",  // none for prod (cross-origin), lax for dev
+            sameSite: isProduction ? "none" : "lax",
             maxAge: 15 * 60 * 1000, // 15 mins
         });
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: isProduction,           // true in prod, false in dev
-            sameSite: isProduction ? "none" : "lax",  // none for prod, lax for dev
+            sameSite: isProduction ? "none" : "lax",
             path: "/api/v1/user/refresh",
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
         res.json({
             message: "Login successful",
-            user: { username: user.username, rank: user.rank, wins: user.wins }
+            user: { username: user.username, rank: user.rank, wins: user.wins },
+            token: accessToken,
+            refreshToken: refreshToken
         });
     } catch (err) {
         console.error("Login error:", err);
@@ -70,7 +71,19 @@ userRouter.post("/login", validate(loginSchema), async (req, res) => {
 
 // REFRESH
 userRouter.get("/refresh", async (req, res) => {
-    const rfToken = req.cookies.refreshToken;
+    let rfToken = req.cookies?.refreshToken;
+
+    if (!rfToken && req.headers.authorization) {
+        const parts = req.headers.authorization.split(" ");
+        if (parts.length === 2 && parts[0] === "Bearer") {
+            rfToken = parts[1];
+        }
+    }
+
+    if (!rfToken) {
+        rfToken = req.headers["x-refresh-token"];
+    }
+
     if (!rfToken) return res.status(401).json({ error: "No refresh token" });
 
     try {
@@ -86,7 +99,10 @@ userRouter.get("/refresh", async (req, res) => {
             maxAge: 15 * 60 * 1000,
         });
 
-        res.json({ message: "Token refreshed" });
+        res.json({
+            message: "Token refreshed",
+            token: newAccessToken
+        });
     } catch (err) {
         res.status(403).json({ error: "Invalid refresh token" });
     }

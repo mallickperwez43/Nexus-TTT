@@ -20,6 +20,12 @@ export const useAuthStore = create((set) => ({
     login: async (data) => {
         try {
             const res = await api.post("/user/login", data);
+            if (res.data.token) {
+                localStorage.setItem("token", res.data.token);
+            }
+            if (res.data.refreshToken) {
+                localStorage.setItem("refreshToken", res.data.refreshToken);
+            }
             set({ user: res.data.user, isAuthenticated: true });
             return { success: true };
         } catch (err) {
@@ -34,6 +40,8 @@ export const useAuthStore = create((set) => ({
             const res = await api.get("/user/me");
             set({ user: res.data.user, isAuthenticated: true });
         } catch (err) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
             set({ user: null, isAuthenticated: false });
         } finally {
             set({ isCheckingAuth: false });
@@ -44,9 +52,14 @@ export const useAuthStore = create((set) => ({
     logout: async () => {
         try {
             await api.post("/user/logout");
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
             set({ user: null, isAuthenticated: false });
         } catch (err) {
             console.error("Logout failed", err);
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            set({ user: null, isAuthenticated: false });
         }
     },
 }));
