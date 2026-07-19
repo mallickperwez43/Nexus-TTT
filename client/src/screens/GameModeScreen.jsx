@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store/useGameStore";
 import { useThemeStore } from "../store/useThemeStore";
@@ -23,10 +23,11 @@ const GameModeScreen = () => {
         ? theme.confetti
         : (theme.xColor || "#94a3b8");
 
-    useEffect(() => {
+    const handleSetMode = (newMode) => {
+        setMode(newMode);
         setLocalP1("");
         setLocalP2("");
-    }, [mode]);
+    };
 
     const handleStartClick = () => {
         setGameMode(mode, mode === "ai" ? aiDifficulty : "Easy");
@@ -144,7 +145,7 @@ const GameModeScreen = () => {
                 </button>
 
                 <button
-                    onClick={() => setMode(null)}
+                    onClick={() => handleSetMode(null)}
                     className="px-6 py-3 rounded-lg"
                     style={{ background: theme.boardColor, color: theme.subTextColor, border: `1px solid ${theme.borderColor}` }}
                 >
@@ -190,14 +191,14 @@ const GameModeScreen = () => {
                     {!mode && (
                         <div className="flex flex-col gap-4">
                             <button
-                                onClick={() => setMode("pvp")}
+                                onClick={() => handleSetMode("pvp")}
                                 className="w-full px-6 py-5 rounded-2xl font-bold text-xl transition transform hover:scale-[1.02] active:scale-95 shadow-xl"
                                 style={{ background: theme.xColor, color: "#fff" }}
                             >
                                 Local PVP
                             </button>
                             <button
-                                onClick={() => setMode("ai")}
+                                onClick={() => handleSetMode("ai")}
                                 className="w-full px-6 py-5 rounded-2xl font-bold text-xl transition transform hover:scale-[1.02] active:scale-95 shadow-xl"
                                 style={{ background: theme.oColor, color: "#fff" }}
                             >

@@ -20,8 +20,6 @@ const GameScreen = () => {
         resetGame,
         undoMove,
         redoMove,
-        canUndo,
-        canRedo,
         _hydrate,
         thinking,
         gameMode,
@@ -32,7 +30,6 @@ const GameScreen = () => {
         gameStarted,
         setBoardSize,
         roomCode,
-        syncGameState
     } = useGameStore();
 
     const { themeConfig, currentTheme } = useThemeStore();
@@ -64,7 +61,7 @@ const GameScreen = () => {
         socket.emit("join_room", {
             room: roomCode,
             username: user?.username || "Guest",
-            gridSize: n,
+            gridSize: useGameStore.getState().boardSize,
         });
 
         // 2. Listen for player count changes
@@ -81,13 +78,14 @@ const GameScreen = () => {
             // 3. Logic: If opponent leaves MID-GAME (not in lobby)
             // We only care if the game actually started (moves on board)
             const isMidGame = useGameStore.getState().board.some(cell => cell !== null);
+            const { winner: currentWinner, boardSize: currentBoardSize } = useGameStore.getState();
 
-            if (data.count < 2 && isMidGame && !winner) {
+            if (data.count < 2 && isMidGame && !currentWinner) {
                 console.log("Opponent disconnected during active play.");
                 // The 'opponent_left_win' event from server will handle the modal
             }
 
-            if (data.gridSize && data.gridSize !== n) {
+            if (data.gridSize && data.gridSize !== currentBoardSize) {
                 useGameStore.getState().setBoardSize(data.gridSize);
             }
         });
@@ -114,7 +112,7 @@ const GameScreen = () => {
 
         // This handles moves, undos, redos, and resets globally
         socket.on("sync_state", (data) => {
-            syncGameState(data);
+            useGameStore.getState().syncGameState(data);
         });
 
         return () => {

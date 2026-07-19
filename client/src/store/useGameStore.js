@@ -97,7 +97,7 @@ export const useGameStore = create(
             },
 
             makeMove: (index) => {
-                const { board, currentPlayer, boardSize, winner, gameMode, difficulty, roomCode, playerRole } = get();
+                const { board, currentPlayer, boardSize, winner, gameMode, roomCode, playerRole } = get();
 
                 // 1. ONLINE MODE: Talk to Server
                 if (gameMode === "online") {
