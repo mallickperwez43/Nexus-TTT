@@ -48,7 +48,7 @@ const GameScreen = () => {
     // used to force recreation of gradient/filter elements so they update reliably
     const [winKey, setWinKey] = useState(0);
 
-    const [opponentJoined, setOpponentJoined] = useState(false);
+    const [opponentJoined, setOpponentJoined] = useState(gameMode !== "online");
 
     const navigate = useNavigate();
 
@@ -386,7 +386,7 @@ const GameScreen = () => {
             socket.disconnect(); // Cleanly close the connection
         }
         resetGame();
-        navigate("/mode");
+        navigate("/");
     };
 
     if (!gameMode) {

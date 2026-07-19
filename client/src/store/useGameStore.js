@@ -43,7 +43,21 @@ export const useGameStore = create(
                 gameStarted: false,
             }),
 
-            setGameMode: (mode, difficulty = "Easy") => set({ gameMode: mode, difficulty }),
+            setGameMode: (mode, difficulty = "Easy") => {
+                const size = get().boardSize;
+                set({
+                    gameMode: mode,
+                    difficulty,
+                    board: Array(size * size).fill(null),
+                    currentPlayer: "X",
+                    winner: null,
+                    winningCells: [],
+                    history: [],
+                    future: [],
+                    gameStarted: false,
+                    roomCode: null
+                });
+            },
             setDifficulty: (difficulty) => set({ difficulty }),
 
             setMultiplayer: (room, role, size = 3) => set({

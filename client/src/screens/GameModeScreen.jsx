@@ -29,6 +29,7 @@ const GameModeScreen = () => {
     }, [mode]);
 
     const handleStartClick = () => {
+        setGameMode(mode, mode === "ai" ? aiDifficulty : "Easy");
         resetGame();
         const p1Name = localP1.trim() || (mode === "ai" ? "Player" : "Player 1");
         const p2Name = mode === "ai" ? "Computer 🤖" : (localP2.trim() || "Player 2");
