@@ -2,6 +2,25 @@ const UserModel = require("../models/User");
 const redis = require("../lib/redis");
 const { syncGameState } = require("../utils/gameState");
 
+// Helper to get players in guaranteed role-aligned order: ['X' player, 'O' player]
+const getSortedPlayers = async (room, playersKey, rolesKey) => {
+    const players = await redis.sMembers(playersKey);
+    const sortedPlayers = [null, null];
+    for (const p of players) {
+        const r = await redis.hGet(rolesKey, p);
+        if (r === "X") {
+            sortedPlayers[0] = p;
+        } else if (r === "O") {
+            sortedPlayers[1] = p;
+        } else {
+            // spectator or extra
+            if (!sortedPlayers[0]) sortedPlayers[0] = p;
+            else if (!sortedPlayers[1]) sortedPlayers[1] = p;
+        }
+    }
+    return sortedPlayers;
+};
+
 module.exports = (io, socket) => {
     // --- 1. ROOM LOGIC ---
     socket.on("join_room", async (data) => {
@@ -10,20 +29,57 @@ module.exports = (io, socket) => {
 
         await socket.join(room); // Join first
 
-        socket.data.room = room;
-        socket.data.username = username;
-
         const roomKey = `room:${room}:metadata`;
         const playersKey = `room:${room}:players`;
+        const rolesKey = `room:${room}:roles`;
 
         try {
+            // Check for duplicate usernames to guarantee uniqueness in the set
+            let finalUsername = username;
+            if (socket.data.room === room && socket.data.username === username) {
+                finalUsername = username;
+            } else {
+                const isDuplicate = await redis.sIsMember(playersKey, String(finalUsername));
+                if (isDuplicate) {
+                    const randomId = Math.floor(1000 + Math.random() * 9000);
+                    finalUsername = `${username}#${randomId}`;
+                }
+            }
 
-            // Add player to Redis
-            await redis.sAdd(playersKey, String(username));
+            socket.data.room = room;
+            socket.data.username = finalUsername;
 
-            // Fetch fresh data
-            const players = await redis.sMembers(playersKey);
-            const actualPlayerCount = players.length;
+            // Add player to Redis set of active players
+            await redis.sAdd(playersKey, String(finalUsername));
+
+            // Assign role dynamically or retrieve existing role
+            let role = await redis.hGet(rolesKey, String(finalUsername));
+            if (!role) {
+                const activePlayers = await redis.sMembers(playersKey);
+                const activeRoles = [];
+                for (const p of activePlayers) {
+                    if (p !== finalUsername) {
+                        const r = await redis.hGet(rolesKey, p);
+                        if (r) activeRoles.push(r);
+                    }
+                }
+
+                if (!activeRoles.includes("X")) {
+                    role = "X";
+                } else if (!activeRoles.includes("O")) {
+                    role = "O";
+                } else {
+                    role = "O"; // Default to "O" for spectator/extra players
+                }
+                await redis.hSet(rolesKey, String(finalUsername), role);
+            }
+
+            // Send role assignment back to the joining socket
+            socket.emit("role_assignment", { role });
+
+            // Fetch fresh list of active players in role-sorted order
+            const players = await getSortedPlayers(room, playersKey, rolesKey);
+            const actualPlayerCount = players.filter(Boolean).length;
 
             const savedGridSize = await redis.hGet(roomKey, "gridSize") || gridSize;
 
@@ -53,14 +109,24 @@ module.exports = (io, socket) => {
             const historyKey = `game:${room}:history`;
 
             await redis.sRem(playersKey, String(username));
-            const remainingPlayers = await redis.sMembers(playersKey);
+            const remainingMembers = await redis.sMembers(playersKey);
+
+            // If the room is completely empty, clean up everything
+            if (remainingMembers.length === 0) {
+                await redis.del(`room:${room}:metadata`);
+                await redis.del(`room:${room}:players`);
+                await redis.del(`room:${room}:roles`);
+                await redis.del(`game:${room}:history`);
+                await redis.del(`game:${room}:future`);
+                return;
+            }
 
             // CHECK: Has the game actually started?
             const history = await redis.lRange(historyKey, 0, -1);
             const gameInProgress = history.length > 0;
 
-            if (remainingPlayers.length === 1 && gameInProgress) {
-                const winnerUsername = remainingPlayers[0];
+            if (remainingMembers.length === 1 && gameInProgress) {
+                const winnerUsername = remainingMembers[0];
                 try {
                     // Only reward if it was a real match
                     await UserModel.findOneAndUpdate(
@@ -84,9 +150,12 @@ module.exports = (io, socket) => {
                 }
             }
 
+            // Fetch sorted remaining players list
+            const remainingPlayers = await getSortedPlayers(room, playersKey, rolesKey);
+
             // Standard status update
             socket.to(room).emit("room_status", {
-                count: remainingPlayers.length,
+                count: remainingMembers.length,
                 players: remainingPlayers,
                 message: `${username} left.`
             });
@@ -210,14 +279,23 @@ module.exports = (io, socket) => {
         const playersKey = `room:${room}:players`;
         await redis.sRem(playersKey, String(username)); // Remove from Redis set
 
-        const remainingPlayers = await redis.sMembers(playersKey);
+        const remainingMembers = await redis.sMembers(playersKey);
         const remainingSize = io.sockets.adapter.rooms.get(room)?.size || 0;
 
-        io.to(room).emit("room_status", {
-            count: remainingSize,
-            players: remainingPlayers,
-            message: "Opponent left."
-        });
+        if (remainingMembers.length === 0) {
+            await redis.del(`room:${room}:metadata`);
+            await redis.del(`room:${room}:players`);
+            await redis.del(`room:${room}:roles`);
+            await redis.del(`game:${room}:history`);
+            await redis.del(`game:${room}:future`);
+        } else {
+            const remainingPlayersList = await getSortedPlayers(room, playersKey, rolesKey);
+            io.to(room).emit("room_status", {
+                count: remainingSize,
+                players: remainingPlayersList,
+                message: "Opponent left."
+            });
+        }
     });
 
     // --- 5. GLOBAL CHAT LOGIC ---
