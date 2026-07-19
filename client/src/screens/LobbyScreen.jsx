@@ -44,10 +44,6 @@ const LobbyScreen = () => {
     const joinRoom = (roomCode, symbol = 'O') => {
         if (roomCode !== "") {
             socket.connect();
-            socket.emit("join_room", {
-                room: roomCode,
-                username: user?.username || "Guest" // Use store data
-            });
             setMultiplayer(roomCode, symbol);
             navigate(`/game?room=${roomCode}`);
         }

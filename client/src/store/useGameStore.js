@@ -73,6 +73,8 @@ export const useGameStore = create(
                 future: []
             }),
 
+            setPlayerRole: (role) => set({ playerRole: role }),
+
             // Update names specifically from the socket room_status event
             updateOnlinePlayers: (players) => {
                 // players is an array from the backend: ["Alice", "Bob"]

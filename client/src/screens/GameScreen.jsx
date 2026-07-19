@@ -115,10 +115,19 @@ const GameScreen = () => {
             useGameStore.getState().syncGameState(data);
         });
 
+        // Listen for server side dynamic role assignment
+        socket.on("role_assignment", (data) => {
+            if (data && data.role) {
+                console.log("🎯 Dynamic Role Assigned by Server :", data.role);
+                useGameStore.getState().setPlayerRole(data.role);
+            }
+        });
+
         return () => {
             socket.off("room_status");
             socket.off("sync_state");
             socket.off("opponent_left_win");
+            socket.off("role_assignment");
         };
     }, [gameMode, roomCode, user]);
 
@@ -555,7 +564,7 @@ const GameScreen = () => {
                                     style={{ backgroundColor: theme.winLine, color: theme.buttonText }}>
                                     Play Again
                                 </button>
-                                <button onClick={() => navigate("/mode")} className="w-full py-2 text-xs font-black uppercase opacity-40">Main Menu</button>
+                                <button onClick={() => navigate("/")} className="w-full py-2 text-xs font-black uppercase opacity-40">Main Menu</button>
                             </div>
                         </div>
                     </div>
