@@ -107,6 +107,7 @@ module.exports = (io, socket) => {
         if (room) {
             const playersKey = `room:${room}:players`;
             const historyKey = `game:${room}:history`;
+            const rolesKey = `room:${room}:roles`;
 
             await redis.sRem(playersKey, String(username));
             const remainingMembers = await redis.sMembers(playersKey);
@@ -277,6 +278,7 @@ module.exports = (io, socket) => {
         socket.leave(room);
 
         const playersKey = `room:${room}:players`;
+        const rolesKey = `room:${room}:roles`;
         await redis.sRem(playersKey, String(username)); // Remove from Redis set
 
         const remainingMembers = await redis.sMembers(playersKey);
